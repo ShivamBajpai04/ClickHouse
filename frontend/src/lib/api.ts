@@ -164,16 +164,31 @@ export const apiService = {
 
   // Download an exported file
   downloadFile: (filename: string) => {
-    const url = `${API_BASE_URL}/download/${filename}`;
+    // Ensure we're only using the basename of the filename
+    const safeFilename =
+      filename.split("/").pop()?.split("\\").pop() || filename;
+    const url = `${API_BASE_URL}/download/${safeFilename}`;
 
     // Only run browser-specific code on the client side
     if (typeof window !== "undefined") {
-      const link = document.createElement("a");
-      link.href = url;
-      link.setAttribute("download", filename);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      try {
+        const link = document.createElement("a");
+        link.href = url;
+        link.setAttribute("download", safeFilename);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        // Show success toast
+        toast.success("CSV Download Started", {
+          description: `Your file "${safeFilename}" is being downloaded`,
+        });
+      } catch (error) {
+        console.error("Download error:", error);
+        toast.error("Download Error", {
+          description: "Failed to download CSV file",
+        });
+      }
     } else {
       console.log(`Server-side download requested for: ${url}`);
       // When called server-side, we just log the URL but don't try to download

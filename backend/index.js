@@ -39,6 +39,8 @@ function startsWith(str, prefix) {
 const upload = multer({ storage });
 
 let client;
+let connectionConfig; // Store connection config for potential reconnection
+
 // Connect to ClickHouse
 app.post("/connect", async (req, res) => {
   const { host, port, database, username, password } = req.body;
@@ -54,12 +56,15 @@ app.post("/connect", async (req, res) => {
   }
 
   try {
-    client = createClient({
+    // Store connection config for potential reconnection
+    connectionConfig = {
       url: `https://${cleanHost}:${port}`,
       username,
       password,
       database,
-    });
+    };
+
+    client = createClient(connectionConfig);
 
     // Test connection
     const result = await client.query({
@@ -72,6 +77,7 @@ app.post("/connect", async (req, res) => {
     res.json({ success: true, message: "Connected to ClickHouse" });
   } catch (err) {
     console.error("Connection error:", err.message);
+    client = null; // Clear the client on connection failure
     res.status(500).json({
       success: false,
       message: "Failed to connect",
@@ -80,9 +86,32 @@ app.post("/connect", async (req, res) => {
   }
 });
 
+// Ensure connection is valid or attempt to reconnect
+async function ensureConnection() {
+  if (!client && connectionConfig) {
+    try {
+      console.log("Attempting to reconnect to ClickHouse...");
+      client = createClient(connectionConfig);
+      await client
+        .query({
+          query: "SELECT 1",
+          format: "JSONEachRow",
+        })
+        .json();
+      console.log("Reconnection successful");
+      return true;
+    } catch (err) {
+      console.error("Reconnection failed:", err.message);
+      client = null;
+      return false;
+    }
+  }
+  return !!client; // Return true if client exists, false otherwise
+}
+
 // Get actual tables from ClickHouse
 app.get("/tables", async (req, res) => {
-  if (!client) {
+  if (!(await ensureConnection())) {
     return res.status(400).json({ error: "Not connected to ClickHouse" });
   }
 
@@ -105,7 +134,7 @@ app.get("/tables", async (req, res) => {
 app.get("/columns/:table", async (req, res) => {
   const { table } = req.params;
 
-  if (!client) {
+  if (!(await ensureConnection())) {
     return res.status(400).json({ error: "Not connected to ClickHouse" });
   }
 
@@ -128,7 +157,9 @@ app.get("/columns/:table", async (req, res) => {
 app.post("/preview", async (req, res) => {
   const { table, columns } = req.body;
 
-  if (!client) return res.status(400).json({ error: "Not connected" });
+  if (!(await ensureConnection())) {
+    return res.status(400).json({ error: "Not connected to ClickHouse" });
+  }
 
   try {
     const columnsStr = columns.length > 0 ? columns.join(", ") : "*";
@@ -168,6 +199,11 @@ async function clickhouseToFlatFile(
   targetFile,
   delimiter = ","
 ) {
+  // Check if client is available
+  if (!(await ensureConnection())) {
+    throw new Error("Not connected to ClickHouse. Please connect first.");
+  }
+
   let results = [];
   let recordCount = 0;
 
@@ -201,7 +237,9 @@ async function clickhouseToFlatFile(
     fs.mkdirSync(dirPath);
   }
 
-  const filePath = path.join(dirPath, `${targetFile || "export.csv"}`);
+  // Ensure we have a valid filename (remove any path characters)
+  const safeFileName = path.basename(targetFile || "export.csv");
+  const filePath = path.join(dirPath, safeFileName);
 
   const header = Object.keys(results[0]).map((key) => ({
     id: key,
@@ -216,16 +254,17 @@ async function clickhouseToFlatFile(
 
   return {
     recordCount,
-    filePath,
-    message: `Successfully exported ${recordCount} records to ${targetFile}`,
+    filePath: safeFileName, // Return just the filename, not the full path
+    message: `Successfully exported ${recordCount} records to ${safeFileName}`,
   };
 }
 
 // Process data ingestion from flat file to ClickHouse
 async function flatFileToClickhouse(filePath, targetTable, delimiter = ",") {
-  return new Promise((resolve, reject) => {
-    if (!client) {
-      reject(new Error("Not connected to ClickHouse"));
+  return new Promise(async (resolve, reject) => {
+    // Check for ClickHouse connection
+    if (!(await ensureConnection())) {
+      reject(new Error("Not connected to ClickHouse. Please connect first."));
       return;
     }
 
@@ -295,6 +334,18 @@ app.post("/ingest", async (req, res) => {
   } = req.body;
 
   try {
+    // Check if client is available for ClickHouse operations
+    if (
+      (source === "clickhouse" || target === "clickhouse") &&
+      !(await ensureConnection())
+    ) {
+      return res.status(400).json({
+        error: "Not connected to ClickHouse",
+        message:
+          "Please connect to ClickHouse before performing data operations",
+      });
+    }
+
     let result;
 
     if (source === "clickhouse" && target === "flatfile") {
@@ -325,6 +376,7 @@ app.post("/ingest", async (req, res) => {
       success: true,
       records: result.recordCount,
       message: result.message,
+      filePath: result.filePath || null,
     });
   } catch (err) {
     console.error("Ingestion error:", err.message);
@@ -338,9 +390,16 @@ app.post("/ingest", async (req, res) => {
 // Download exported file
 app.get("/download/:filename", (req, res) => {
   const { filename } = req.params;
-  const filePath = path.join(__dirname, "exports", filename);
+  // Make sure we only use the basename (no path manipulation)
+  const safeFilename = path.basename(filename);
+  const filePath = path.join(__dirname, "exports", safeFilename);
+
+  console.log(
+    `Download requested for: ${safeFilename}, looking at: ${filePath}`
+  );
 
   if (!fs.existsSync(filePath)) {
+    console.error(`File not found: ${filePath}`);
     return res.status(404).json({ error: "File not found" });
   }
 

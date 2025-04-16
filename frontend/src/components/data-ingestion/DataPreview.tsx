@@ -143,12 +143,17 @@ export function DataPreview({
 
       // Handle file download for flatfile target
       if (target === "flatfile" && result.filePath) {
+        // Extract just the filename without path
+        const safeFilename =
+          result.filePath.split("/").pop()?.split("\\").pop() ||
+          result.filePath;
+
         // Show download button
         toast.success("File Ready", {
           description: "Your export file is ready for download",
           action: {
             label: "Download",
-            onClick: () => apiService.downloadFile(targetFile),
+            onClick: () => apiService.downloadFile(safeFilename),
           },
         });
       }
@@ -193,13 +198,23 @@ export function DataPreview({
         {target === "flatfile" && (
           <div className="mb-4">
             <Label htmlFor="targetFile">Export File Name</Label>
-            <Input
-              id="targetFile"
-              placeholder="export.csv"
-              value={targetFile}
-              onChange={(e) => setTargetFile(e.target.value)}
-              className="mb-4"
-            />
+            <div className="flex items-center gap-2">
+              <Input
+                id="targetFile"
+                placeholder="export.csv"
+                value={targetFile}
+                onChange={(e) => setTargetFile(e.target.value)}
+                className="mb-4"
+              />
+              {!targetFile.toLowerCase().endsWith(".csv") && (
+                <p className="text-xs text-yellow-500 mb-4">
+                  File name should end with .csv
+                </p>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground mb-2">
+              Your selected data will be exported as a CSV file with this name.
+            </p>
           </div>
         )}
 
@@ -225,6 +240,8 @@ export function DataPreview({
               ? "Processing..."
               : source === "flatfile" && target === "clickhouse"
               ? "Send to ClickHouse"
+              : source === "clickhouse" && target === "flatfile"
+              ? "Export to CSV"
               : "Start Ingestion"}
           </Button>
           <Button
