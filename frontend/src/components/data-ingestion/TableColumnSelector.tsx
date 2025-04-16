@@ -44,13 +44,18 @@ export function TableColumnSelector({
   // Fetch tables when ClickHouse is connected but only if not already loaded
   useEffect(() => {
     try {
-      if (isClickHouseConnected && !tablesLoaded && tables.length === 0) {
-        fetchTables();
-      } else if (mockTables.length > 0 && !tablesLoaded) {
-        // Use mock data if provided and not connected to ClickHouse
+      if (mockTables.length > 0) {
+        // Always prefer using mockTables if available
         setTables(mockTables);
         setColumns(mockColumns);
         setTablesLoaded(true);
+      } else if (
+        isClickHouseConnected &&
+        !tablesLoaded &&
+        tables.length === 0
+      ) {
+        // Only fetch tables if mockTables not provided and tables not already loaded
+        fetchTables();
       }
     } catch (error) {
       console.error("Error in tables useEffect:", error);
@@ -94,10 +99,7 @@ export function TableColumnSelector({
       setTables(tableList);
       setTablesLoaded(true);
 
-      // Restore a single toast notification for table loading
-      toast.success("Tables Loaded", {
-        description: `Found ${tableList.length} tables in database`,
-      });
+      // Remove toast notification to prevent duplicates
       console.log(
         `Tables Loaded: Found ${tableList.length} tables in database`
       );

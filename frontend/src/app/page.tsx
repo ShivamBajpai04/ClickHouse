@@ -58,6 +58,13 @@ export default function DataIngestionTool() {
       const tables = await apiService.getTables();
       setClickhouseTables(tables);
       setShowTableSelector(source === "clickhouse" && target === "flatfile");
+
+      // Add a toast notification for table loading
+      if (tables.length > 0) {
+        toast.success("Tables Loaded", {
+          description: `Found ${tables.length} tables in database`,
+        });
+      }
     } catch (error) {
       console.error("Failed to fetch tables:", error);
       toast.error("Failed to fetch tables from ClickHouse");
