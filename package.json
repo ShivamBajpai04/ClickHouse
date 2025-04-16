@@ -1,0 +1,35 @@
+{
+  "name": "clickhouse-data-ingestion-tool",
+  "version": "1.0.0",
+  "description": "A full-stack application for bi-directional data transfer between ClickHouse databases and flat files",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:backend": "cd backend && npm run dev",
+    "dev:frontend": "cd frontend && npm run dev",
+    "install:all": "npm install && npm run install:backend && npm run install:frontend",
+    "install:backend": "cd backend && npm install",
+    "install:frontend": "cd frontend && npm install",
+    "start": "concurrently \"npm run start:backend\" \"npm run start:frontend\"",
+    "start:backend": "cd backend && npm start",
+    "start:frontend": "cd frontend && npm start"
+  },
+  "keywords": [
+    "clickhouse",
+    "data-ingestion",
+    "csv",
+    "full-stack"
+  ],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "concurrently": "^8.2.0"
+  },
+  "engines": {
+    "node": ">=16"
+  },
+  "workspaces": [
+    "backend",
+    "frontend"
+  ]
+}
