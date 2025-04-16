@@ -91,7 +91,7 @@ This tool provides a user-friendly interface for:
 
 2. Install all dependencies:
    ```
-   npm run install:all
+   pnpm install:all
    ```
 
 #### Method 2: Installing individual packages
@@ -107,14 +107,14 @@ This tool provides a user-friendly interface for:
 
    ```
    cd backend
-   npm install
+   pnpm install
    cd ..
    ```
 
 3. Install frontend dependencies:
    ```
    cd frontend
-   npm install
+   pnpm install
    cd ..
    ```
 
@@ -138,7 +138,7 @@ start.bat
 #### Method 2: Using npm scripts
 
 ```
-npm run dev
+pnpm dev
 ```
 
 #### Method 3: Running services individually
@@ -147,14 +147,14 @@ npm run dev
 
    ```
    cd backend
-   npm run dev
+   pnpm dev
    ```
 
 2. Start the frontend development server:
 
    ```
    cd frontend
-   npm run dev
+   pnpm dev
    ```
 
 3. Open your browser and navigate to http://localhost:3000

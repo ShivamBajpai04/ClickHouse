@@ -15,7 +15,7 @@ echo "Starting ClickHouse Data Ingestion Tool..."
 # Start backend service
 echo "Starting backend server..."
 cd backend
-npm run dev &
+pnpm dev &
 BACKEND_PID=$!
 cd ..
 
@@ -25,7 +25,7 @@ sleep 2
 # Start frontend service
 echo "Starting frontend server..."
 cd frontend
-npm run dev &
+pnpm dev &
 FRONTEND_PID=$!
 cd ..
 
