@@ -159,9 +159,6 @@ export default function TableConfiguration({
     <Card className="w-full">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <div className="flex items-center justify-center rounded-full bg-black text-white w-6 h-6 text-sm">
-            2
-          </div>
           Configure table
         </CardTitle>
       </CardHeader>

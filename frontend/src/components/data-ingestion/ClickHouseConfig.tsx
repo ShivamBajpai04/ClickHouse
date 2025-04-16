@@ -1,5 +1,5 @@
-import { Database, Lock, Server } from "lucide-react";
-import { useState } from "react";
+import { Database, Lock, Server, RefreshCw } from "lucide-react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import {
   Card,
@@ -16,16 +16,29 @@ import { apiService } from "@/lib/api";
 interface ClickHouseConfigProps {
   type: "source" | "target";
   onConnected?: (success: boolean) => void;
+  isConnected?: boolean;
 }
 
-export function ClickHouseConfig({ type, onConnected }: ClickHouseConfigProps) {
+export function ClickHouseConfig({ 
+  type, 
+  onConnected,
+  isConnected: externalIsConnected 
+}: ClickHouseConfigProps) {
   const [host, setHost] = useState("localhost");
-  const [port, setPort] = useState("8123");
+  const [port, setPort] = useState("8443");
   const [database, setDatabase] = useState("default");
   const [username, setUsername] = useState("default");
   const [password, setPassword] = useState("");
   const [isConnecting, setIsConnecting] = useState(false);
-  const [isConnected, setIsConnected] = useState(false);
+  const [internalIsConnected, setInternalIsConnected] = useState(false);
+
+  const isConnected = externalIsConnected !== undefined ? externalIsConnected : internalIsConnected;
+
+  useEffect(() => {
+    if (externalIsConnected !== undefined) {
+      setInternalIsConnected(externalIsConnected);
+    }
+  }, [externalIsConnected]);
 
   const handleConnect = async () => {
     if (!host || !port || !database || !username) {
@@ -46,7 +59,7 @@ export function ClickHouseConfig({ type, onConnected }: ClickHouseConfigProps) {
       });
 
       if (result.success) {
-        setIsConnected(true);
+        setInternalIsConnected(true);
         toast.success("Connection Successful", {
           description: "Connected to ClickHouse database",
         });
@@ -69,6 +82,16 @@ export function ClickHouseConfig({ type, onConnected }: ClickHouseConfigProps) {
     } finally {
       setIsConnecting(false);
     }
+  };
+
+  const handleReset = () => {
+    setInternalIsConnected(false);
+    if (onConnected) {
+      onConnected(false);
+    }
+    toast.info("Connection Reset", {
+      description: "You can now modify connection details and reconnect",
+    });
   };
 
   return (
@@ -144,18 +167,24 @@ export function ClickHouseConfig({ type, onConnected }: ClickHouseConfigProps) {
               />
             </div>
           </div>
-          <div className="flex items-end">
-            <Button
-              onClick={handleConnect}
-              disabled={isConnecting || isConnected}
-              className="w-full"
-            >
-              {isConnecting
-                ? "Connecting..."
-                : isConnected
-                ? "Connected ✓"
-                : "Connect"}
-            </Button>
+          <div className="flex items-end gap-2">
+            {isConnected ? (
+              <Button 
+                onClick={handleReset}
+                className="w-full"
+                variant="outline"
+              >
+                <RefreshCw className="h-4 w-4 mr-2" /> Reset Connection
+              </Button>
+            ) : (
+              <Button
+                onClick={handleConnect}
+                disabled={isConnecting}
+                className="w-full"
+              >
+                {isConnecting ? "Connecting..." : "Connect"}
+              </Button>
+            )}
           </div>
         </div>
       </CardContent>

@@ -39,36 +39,68 @@ export function TableColumnSelector({
     {}
   );
   const [error, setError] = useState<string | null>(null);
+  const [tablesLoaded, setTablesLoaded] = useState(false);
 
-  // Fetch tables when ClickHouse is connected
+  // Fetch tables when ClickHouse is connected but only if not already loaded
   useEffect(() => {
-    if (isClickHouseConnected) {
-      fetchTables();
-    } else if (mockTables.length > 0) {
-      // Use mock data if provided and not connected to ClickHouse
-      setTables(mockTables);
-      setColumns(mockColumns);
+    try {
+      if (isClickHouseConnected && !tablesLoaded && tables.length === 0) {
+        fetchTables();
+      } else if (mockTables.length > 0 && !tablesLoaded) {
+        // Use mock data if provided and not connected to ClickHouse
+        setTables(mockTables);
+        setColumns(mockColumns);
+        setTablesLoaded(true);
+      }
+    } catch (error) {
+      console.error("Error in tables useEffect:", error);
+      setError("An error occurred while loading tables.");
     }
-  }, [isClickHouseConnected, mockTables, mockColumns]);
+  }, [
+    isClickHouseConnected,
+    mockTables,
+    mockColumns,
+    tablesLoaded,
+    tables.length,
+  ]);
+
+  // Reset tables loaded state when connection changes
+  useEffect(() => {
+    if (!isClickHouseConnected) {
+      setTablesLoaded(false);
+    }
+  }, [isClickHouseConnected]);
 
   // Fetch columns when tables are selected
   useEffect(() => {
-    if (selectedTables.length > 0 && isClickHouseConnected) {
-      selectedTables.forEach(fetchColumns);
+    try {
+      if (selectedTables.length > 0 && isClickHouseConnected) {
+        // Only fetch columns for tables that don't already have columns loaded
+        selectedTables.filter((table) => !columns[table]).forEach(fetchColumns);
+      }
+    } catch (error) {
+      console.error("Error in columns useEffect:", error);
     }
-  }, [selectedTables, isClickHouseConnected]);
+  }, [selectedTables, isClickHouseConnected, columns]);
 
   const fetchTables = async () => {
+    if (loading || tablesLoaded) return; // Prevent multiple simultaneous calls
+
     setLoading(true);
     setError(null);
 
     try {
       const tableList = await apiService.getTables();
       setTables(tableList);
+      setTablesLoaded(true);
 
+      // Restore a single toast notification for table loading
       toast.success("Tables Loaded", {
         description: `Found ${tableList.length} tables in database`,
       });
+      console.log(
+        `Tables Loaded: Found ${tableList.length} tables in database`
+      );
     } catch (error) {
       console.error("Error fetching tables:", error);
       setError(
@@ -89,9 +121,9 @@ export function TableColumnSelector({
       const columnList = await apiService.getColumns(table);
       setColumns((prev) => ({ ...prev, [table]: columnList }));
 
-      toast.success(`Columns for ${table} Loaded`, {
-        description: `Found ${columnList.length} columns in table ${table}`,
-      });
+      console.log(
+        `Columns for ${table} Loaded: Found ${columnList.length} columns`
+      );
     } catch (error) {
       console.error(`Error fetching columns for ${table}:`, error);
       // Error already handled by API service

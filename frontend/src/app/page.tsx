@@ -89,6 +89,8 @@ export default function DataIngestionTool() {
     setSelectedTables([]);
     setSelectedColumns({});
     setPreviewData([]);
+    // Reset ClickHouse connection status when changing source
+    setIsClickHouseConnected(false);
   };
 
   const handleTargetChange = (value: string) => {
@@ -101,6 +103,8 @@ export default function DataIngestionTool() {
     setSelectedTables([]);
     setSelectedColumns({});
     setPreviewData([]);
+    // Reset ClickHouse connection status when changing target
+    setIsClickHouseConnected(false);
   };
 
   const handleTableSelect = (table: string) => {
@@ -431,6 +435,7 @@ export default function DataIngestionTool() {
           <ClickHouseConfig
             type={source === "clickhouse" ? "source" : "target"}
             onConnected={handleClickHouseConnected}
+            isConnected={isClickHouseConnected}
           />
         )}
 
@@ -461,7 +466,7 @@ export default function DataIngestionTool() {
               onTableSelect={handleTableSelect}
               onColumnSelect={handleColumnSelect}
               isClickHouseConnected={isClickHouseConnected}
-              mockTables={[]}
+              mockTables={clickhouseTables.length > 0 ? clickhouseTables : []}
               mockColumns={clickhouseColumns}
             />
           )}
